@@ -87,6 +87,7 @@ async function core(mappedInputs) {
  * TODO figure out what the initial input looks like, and map the data
  ***************************************************************/
 function mapInputs(inputs) {
+    // TODO do whole map here, return new array
     return {
         teacher: {
             id: null,
