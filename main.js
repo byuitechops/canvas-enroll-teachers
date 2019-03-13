@@ -1,9 +1,11 @@
 const path = require('path');
 const fs = require('fs');
 const asyncLib = require('async')
-
 const canvas = require('canvas-api-wrapper');
 
+/***************************************************************
+ *
+ ***************************************************************/
 async function input() {
     let fileLocation = process.argv[2];
     let inputs;
@@ -18,10 +20,17 @@ async function input() {
     }
 }
 
-async function core() {
+/***************************************************************
+ * Lots of copy-paste code here. See inner blocks for more detail
+ ***************************************************************/
+async function core(mappedInputs) {
     var goodEnrollments = [];
     var badEnrollments = [];
 
+    /**************************************************
+    * Code that sets up and makes the PUT reuqest. 
+    * Reports errors in error badEnrollments var.
+    **************************************************/
     function enrollTeacher(courseData, callback) {
         var enrollmentObj = {
             enrollment: {
@@ -53,7 +62,11 @@ async function core() {
         });
     }
 
-    asyncLib.eachLimit(toEnroll.slice(0), 25, enrollTeacher, (err) => {
+    /**************************************************
+    * Code that writes out report files. Also control-
+    * flow, only 25 concurrent processes.
+    **************************************************/
+    asyncLib.eachLimit(mappedInputs.slice(0), 25, enrollTeacher, (err) => {
         if (err) {
             console.log(err);
             return;
@@ -64,19 +77,41 @@ async function core() {
             failure: badEnrollments,
         };
 
-        fs.writeFileSync(`./${date}-Enrollments.json`, JSON.stringify(goodEnrollments, null, 4));
+        fs.writeFileSync(`./${date}-Enrollments.json`, JSON.stringify(output, null, 4));
 
         console.log('Enrollments complete.');
     });
 }
+/***************************************************************
+ * Takes inputs from json, and maps them to program expected inputs
+ * TODO figure out what the initial input looks like, and map the data
+ ***************************************************************/
+function mapInputs(inputs) {
+    return {
+        teacher: {
+            id: null,
+            name: null,
+        },
+        course: {
+            id: null,
+        },
+    }
+}
 
+/***************************************************************
+ * UNUSED
+ ***************************************************************/
 async function output(outputs) {
     return;
 }
 
+/***************************************************************
+ * Main Runner
+ ***************************************************************/
 async function main() {
     let inputs = await input();
-    let outputs = await core(inputs);
+    let mappedInputs = mapInputs(inputs);
+    let outputs = await core(mappedInputs);
     await output(outputs);
 }
 
