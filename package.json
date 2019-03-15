@@ -1,0 +1,25 @@
+{
+  "name": "canvas-enroll-teachers",
+  "version": "1.0.0",
+  "description": "Enroll teachers based on JSON",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/byuitechops/canvas-enroll-teachers.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/byuitechops/canvas-enroll-teachers/issues"
+  },
+  "homepage": "https://github.com/byuitechops/canvas-enroll-teachers#readme",
+  "dependencies": {
+    "async": "^2.6.2",
+    "canvas-api-wrapper": "^3.3.5",
+    "d3-dsv": "^1.1.1",
+    "moment": "^2.24.0"
+  }
+}

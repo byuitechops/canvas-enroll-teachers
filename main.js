@@ -1,18 +1,18 @@
-const path = require('path');
 const fs = require('fs');
-const asyncLib = require('async')
+const path = require('path');
+const moment = require('moment');
+const asyncLib = require('async');
 const canvas = require('canvas-api-wrapper');
 
 /***************************************************************
  *
  ***************************************************************/
-async function input() {
+function input() {
     let fileLocation = process.argv[2];
     let inputs;
     if (fs.existsSync(fileLocation) && path.extname(fileLocation) === '.json') {
         inputs = getInputViaJson(fileLocation);
     }
-
     return inputs;
 
     function getInputViaJson(file) {
@@ -23,14 +23,14 @@ async function input() {
 /***************************************************************
  * Lots of copy-paste code here. See inner blocks for more detail
  ***************************************************************/
-async function core(mappedInputs) {
+function core(mappedInputs) {
     var goodEnrollments = [];
     var badEnrollments = [];
 
     /**************************************************
-    * Code that sets up and makes the PUT reuqest. 
-    * Reports errors in error badEnrollments var.
-    **************************************************/
+     * Code that sets up and makes the PUT reuqest. 
+     * Reports errors in error badEnrollments var.
+     **************************************************/
     function enrollTeacher(courseData, callback) {
         var enrollmentObj = {
             enrollment: {
@@ -41,7 +41,7 @@ async function core(mappedInputs) {
             }
         };
 
-        canvas.post(`/api/v1/courses/${courseData.course.id}/enrollments`, enrollmentObj, (err, success) => {
+        canvas.post(`/api/v1/courses/${courseData.course.id}/enrollments`, enrollmentObj, (err) => {
             if (err) {
                 console.log(err);
                 badEnrollments.push({
@@ -63,9 +63,9 @@ async function core(mappedInputs) {
     }
 
     /**************************************************
-    * Code that writes out report files. Also control-
-    * flow, only 25 concurrent processes.
-    **************************************************/
+     * Code that writes out report files. Also control-
+     * flow, only 25 concurrent processes.
+     **************************************************/
     asyncLib.eachLimit(mappedInputs.slice(0), 25, enrollTeacher, (err) => {
         if (err) {
             console.log(err);
@@ -78,7 +78,6 @@ async function core(mappedInputs) {
         };
 
         fs.writeFileSync(`./${date}-Enrollments.json`, JSON.stringify(output, null, 4));
-
         console.log('Enrollments complete.');
     });
 }
@@ -87,16 +86,32 @@ async function core(mappedInputs) {
  * TODO figure out what the initial input looks like, and map the data
  ***************************************************************/
 function mapInputs(inputs) {
-    // TODO do whole map here, return new array
-    return {
-        teacher: {
-            id: null,
-            name: null,
-        },
-        course: {
-            id: null,
-        },
-    }
+    inputs = inputs.filter(input => {
+        return input.status != 'Passed';
+    });
+    return inputs.map(input => {
+        if (input.status === 'Failed') {
+            return {
+                incorrectTeachers: input.teachers, // I believe this is normally 1 however they are in a list because there could be multiple
+                teacher: {
+                    id: `sis_user_id:${input.correctTeacher}`
+                },
+                course: {
+                    id: `sis_course_id:C.${input.id}`,
+                },
+            };
+        } else {
+            return {
+                teacher: {
+                    id: `sis_user_id:${input.correctTeacher}`
+                },
+                course: {
+                    id: `sis_course_id:C.${input.id}`,
+                },
+            };
+        }
+
+    });
 }
 
 /***************************************************************
@@ -109,11 +124,12 @@ async function output(outputs) {
 /***************************************************************
  * Main Runner
  ***************************************************************/
-async function main() {
-    let inputs = await input();
+function main() {
+    let inputs = input(); // Run me with the enrollmentReport.json
     let mappedInputs = mapInputs(inputs);
-    let outputs = await core(mappedInputs);
-    await output(outputs);
+    // TODO: Unenroll incorrect teachers before enrolling correct ones!!!
+    //let outputs = core(mappedInputs);
+    //output(outputs);
 }
 
-main().catch(console.error)
+main();
