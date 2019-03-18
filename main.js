@@ -41,24 +41,82 @@ function core(mappedInputs) {
             }
         };
 
-        canvas.post(`/api/v1/courses/${courseData.course.id}/enrollments`, enrollmentObj, (err) => {
-            if (err) {
-                console.log(err);
-                badEnrollments.push({
+        if (courseData.incorrectTeachers) {
+            // This course has the wrong teacher enrolled. Unenroll! :D
+            unenrollTeachers(courseData, err => {
+                if (err) {
+                    console.log(err);
+                    callback(null);
+                } else {
+                    // Now enroll the correct teacher
+                    canvas.post(`/api/v1/courses/${courseData.course.id}/enrollments`, enrollmentObj, (err) => {
+                        if (err) {
+                            console.log(err);
+                            badEnrollments.push({
+                                teacher: courseData,
+                                err: err,
+                                message: 'Error Enrolling'
+                            });
+                            callback(null);
+                            return;
+                        }
+                        console.log(`${courseData.course.id} | ${courseData.teacher.name} has been enrolled in their Sandbox course.`);
+                        goodEnrollments.push({
+                            teacher: courseData,
+                            err: err,
+                            message: 'Successful Enrollment'
+                        });
+                        callback(null);
+                    });
+                }
+            });
+        } else {
+            // Course has 0 enrollments and is ready to recieve them
+            canvas.post(`/api/v1/courses/${courseData.course.id}/enrollments`, enrollmentObj, (err) => {
+                if (err) {
+                    console.log(err);
+                    badEnrollments.push({
+                        teacher: courseData,
+                        err: err,
+                        message: 'Error Enrolling'
+                    });
+                    callback(null);
+                    return;
+                }
+                console.log(`${courseData.course.id} | ${courseData.teacher.name} has been enrolled in their Sandbox course.`);
+                goodEnrollments.push({
                     teacher: courseData,
                     err: err,
-                    message: 'Error Enrolling'
+                    message: 'Successful Enrollment'
                 });
                 callback(null);
-                return;
-            }
-            console.log(`${courseData.course.id} | ${courseData.teacher.name} has been enrolled in their Sandbox course.`);
-            goodEnrollments.push({
-                teacher: courseData,
-                err: err,
-                message: 'Successful Enrollment'
             });
-            callback(null);
+        }
+    }
+
+    /**************************************************
+     * Code that sets up and makes the unenroll reuqest. 
+     * Reports errors in error badEnrollments var.
+     **************************************************/
+    function unenrollTeachers(courseData, unenrollCallback) {
+
+        function unenrollTeacher(teacher, utCallback) {
+            canvas.delete(`/api/v1/courses/${courseData.course.id}/enrollments/${teacher.id}?task=delete`, (err) => {
+                if (err) {
+                    utCallback(err);
+                } else {
+                    console.log(`${teacher.id} unenrolled from course: ${courseData.course.id}`);
+                    utCallback(null);
+                }
+            });
+        }
+
+        asyncLib.each(courseData.incorrectTeachers, unenrollTeacher, err => {
+            if (err) {
+                unenrollCallback(err);
+            } else {
+                unenrollCallback(null);
+            }
         });
     }
 
@@ -115,21 +173,12 @@ function mapInputs(inputs) {
 }
 
 /***************************************************************
- * UNUSED
- ***************************************************************/
-async function output(outputs) {
-    return;
-}
-
-/***************************************************************
  * Main Runner
  ***************************************************************/
 function main() {
     let inputs = input(); // Run me with the enrollmentReport.json
     let mappedInputs = mapInputs(inputs);
-    // TODO: Unenroll incorrect teachers before enrolling correct ones!!!
-    //let outputs = core(mappedInputs);
-    //output(outputs);
+    core(mappedInputs);
 }
 
 main();
