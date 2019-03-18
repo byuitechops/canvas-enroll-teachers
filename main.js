@@ -99,7 +99,6 @@ function core(mappedInputs) {
      * Reports errors in error badEnrollments var.
      **************************************************/
     function unenrollTeachers(courseData, unenrollCallback) {
-
         function unenrollTeacher(teacher, utCallback) {
             canvas.delete(`/api/v1/courses/${courseData.course.id}/enrollments/${teacher.id}?task=delete`, (err) => {
                 if (err) {
