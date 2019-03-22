@@ -3,7 +3,7 @@ const path = require('path');
 const moment = require('moment');
 const asyncLib = require('async');
 const canvas = require('canvas-api-wrapper');
-canvas.subdomain = 'byui.beta';
+//canvas.subdomain = 'byui.beta'; // Uncomment this when testing
 
 /***************************************************************
  *
@@ -44,7 +44,6 @@ function core(mappedInputs) {
 
         if (courseData.incorrectTeachers) {
             // This course has the wrong teacher enrolled. Unenroll! :D
-            console.log('Incorrect!!!');
             unenrollTeachers(courseData, err => {
                 if (err) {
                     console.log(err);
@@ -53,7 +52,7 @@ function core(mappedInputs) {
                     // Now enroll the correct teacher
                     canvas.post(`/api/v1/courses/${courseData.course.id}/enrollments`, enrollmentObj, (err) => {
                         if (err) {
-                            //console.log(err);
+                            console.log(err);
                             badEnrollments.push({
                                 teacher: courseData,
                                 err: err,
@@ -76,7 +75,7 @@ function core(mappedInputs) {
             // Course has 0 enrollments and is ready to recieve them
             canvas.post(`/api/v1/courses/${courseData.course.id}/enrollments`, enrollmentObj, (err) => {
                 if (err) {
-                    //console.log(err);
+                    console.log(err);
                     badEnrollments.push({
                         teacher: courseData,
                         err: err,
@@ -127,7 +126,7 @@ function core(mappedInputs) {
      **************************************************/
     asyncLib.eachLimit(mappedInputs.slice(0), 25, enrollTeacher, (err) => {
         if (err) {
-            //console.log(err);
+            console.log(err);
             return;
         }
         var date = moment().format('YYYYMMDD_kkmm');
