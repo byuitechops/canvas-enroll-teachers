@@ -61,5 +61,5 @@ typings/
 .next
 
 # reports
-enrollmentReport.csv
-enrollmentReport.json
+*.csv
+*.json

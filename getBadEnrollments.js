@@ -4,6 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const d3 = require('d3-dsv');
 
+canvas.subdomain = 'byui.beta'; // Uncomment this when testing
+
 const courseStatusCodes = {
     passed: 'Passed',
     failed: 'Failed',
@@ -61,6 +63,9 @@ function checkEnrollments(courseData, callback) {
                             status: teacherStatusCodes.extra
                         });
                     }
+                    if (courseStatusObj.teachers.length > 1) {
+                        courseStatusObj.numTeachers = courseStatusObj.teachers.length;
+                    }
                 });
             } else {
                 console.log(`${courseData.entityCode} Failed`);
@@ -68,6 +73,7 @@ function checkEnrollments(courseData, callback) {
                 courseStatusObj.status = courseStatusCodes.failed;
                 teacherEnrollments.forEach(teacherEnrollment => {
                     courseStatusObj.teachers.push({
+                        enrollmentId: teacherEnrollment.id,
                         id: teacherEnrollment.user.sis_user_id, // INumber
                         status: teacherStatusCodes.incorrect
                     });
