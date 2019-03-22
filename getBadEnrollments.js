@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const d3 = require('d3-dsv');
 
-//canvas.subdomain = 'byui.beta'; // Uncomment this when testing
+canvas.subdomain = 'byui.beta'; // Comment this when running
 
 const courseStatusCodes = {
     passed: 'Passed',

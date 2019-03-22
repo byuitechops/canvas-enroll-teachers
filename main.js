@@ -3,7 +3,7 @@ const path = require('path');
 const moment = require('moment');
 const asyncLib = require('async');
 const canvas = require('canvas-api-wrapper');
-//canvas.subdomain = 'byui.beta'; // Uncomment this when testing
+canvas.subdomain = 'byui.beta'; // Comment this when running prod
 
 /***************************************************************
  *
