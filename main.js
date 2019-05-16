@@ -3,7 +3,17 @@ const path = require('path');
 const moment = require('moment');
 const asyncLib = require('async');
 const canvas = require('canvas-api-wrapper');
-canvas.subdomain = 'byui.beta'; // Comment this when running prod
+//canvas.subdomain = 'byui.beta'; // Comment this when running prod
+
+let choices = {
+    students: studentCore,
+    teachers: teacherCore
+};
+
+let mapChoices = {
+    students: mapStudentInputs,
+    teachers: mapTeacherInputs
+};
 
 /***************************************************************
  *
@@ -21,10 +31,120 @@ function input() {
     }
 }
 
+function studentCore(mappedInputs) {
+    var goodEnrollments = [];
+    var badEnrollments = [];
+
+    /**************************************************
+     * Code that sets up and makes the PUT reuqest. 
+     * Reports errors in error badEnrollments var.
+     **************************************************/
+    function enrollStudent(courseData, callback) {
+        courseData.students.forEach(student => {
+            var enrollmentObj = {
+                enrollment: {
+                    user_id: `sis_user_id:${student.id}`,
+                    type: 'StudentEnrollment',
+                    enrollment_state: 'active',
+                    notify: false
+                }
+            };
+
+            if (false) { //courseData.incorrectTeachers) {
+                // This course has the wrong teacher enrolled. Unenroll! :D
+                unenrollStudent(student, err => {
+                    if (err) {
+                        console.log(err);
+                        callback(null);
+                    } else {
+                        // Now enroll the correct teacher
+                        canvas.post(`/api/v1/sections/${courseData.section.id}/enrollments`, enrollmentObj, (err) => {
+                            if (err) {
+                                console.log(err);
+                                badEnrollments.push({
+                                    teacher: courseData,
+                                    err: err,
+                                    message: 'Error Enrolling'
+                                });
+                                callback(null);
+                                return;
+                            }
+                            console.log(`${courseData.section.id} | ${student.id} has been enrolled`);
+                            goodEnrollments.push({
+                                student: student,
+                                err: err,
+                                message: 'Successful Enrollment'
+                            });
+                            callback(null);
+                        });
+                    }
+                });
+            } else {
+                // Course has 0 enrollments and is ready to recieve them
+                canvas.post(`/api/v1/sections/${courseData.section.id}/enrollments`, enrollmentObj, (err) => {
+                    if (err) {
+                        console.log(err);
+                        badEnrollments.push({
+                            student: student,
+                            err: err,
+                            message: err.message
+                        });
+                        callback(null);
+                        return;
+                    }
+                    console.log(`${courseData.section.id} | ${student.id} has been enrolled.`);
+                    goodEnrollments.push({
+                        student: student,
+                        err: err,
+                        message: 'Successful Enrollment'
+                    });
+                    callback(null);
+                });
+            }
+        });
+
+        /**************************************************
+         * Code that sets up and makes the unenroll reuqest. 
+         * Reports errors in error badEnrollments var.
+         **************************************************/
+        function unenrollStudent(student, utCallback) {
+            canvas.delete(`/api/v1/sections/${courseData.section.id}/enrollments/${student.enrollmentId}?task=delete`, (err) => {
+                if (err) {
+                    utCallback(err);
+                } else {
+                    console.log(`${student.id} unenrolled from section: ${courseData.section.id}`);
+                    utCallback(null);
+                }
+            });
+        }
+    }
+
+
+
+    /**************************************************
+     * Code that writes out report files. Also control-
+     * flow, only 25 concurrent processes.
+     **************************************************/
+    asyncLib.eachLimit(mappedInputs.slice(0), 25, enrollStudent, (err) => {
+        if (err) {
+            console.log(err);
+            return;
+        }
+        var date = moment().format('YYYYMMDD_kkmm');
+        var output = {
+            success: goodEnrollments,
+            failure: badEnrollments,
+        };
+
+        fs.writeFileSync(`./reports/${date}-Enrollments.json`, JSON.stringify(output, null, 4));
+        console.log('Enrollments complete.');
+    });
+}
+
 /***************************************************************
  * Lots of copy-paste code here. See inner blocks for more detail
  ***************************************************************/
-function core(mappedInputs) {
+function teacherCore(mappedInputs) {
     var goodEnrollments = [];
     var badEnrollments = [];
 
@@ -42,7 +162,7 @@ function core(mappedInputs) {
             }
         };
 
-        if (courseData.incorrectTeachers) {
+        if (false) { //courseData.incorrectTeachers) {
             // This course has the wrong teacher enrolled. Unenroll! :D
             unenrollTeachers(courseData, err => {
                 if (err) {
@@ -50,7 +170,7 @@ function core(mappedInputs) {
                     callback(null);
                 } else {
                     // Now enroll the correct teacher
-                    canvas.post(`/api/v1/courses/${courseData.course.id}/enrollments`, enrollmentObj, (err) => {
+                    canvas.post(`/api/v1/sections/${courseData.section.id}/enrollments`, enrollmentObj, (err) => {
                         if (err) {
                             console.log(err);
                             badEnrollments.push({
@@ -61,7 +181,7 @@ function core(mappedInputs) {
                             callback(null);
                             return;
                         }
-                        console.log(`${courseData.course.id} | ${courseData.teacher.id} has been enrolled in their Sandbox course.`);
+                        console.log(`${courseData.section.id} | ${courseData.teacher.id} has been enrolled in their Sandbox course.`);
                         goodEnrollments.push({
                             teacher: courseData,
                             err: err,
@@ -73,18 +193,18 @@ function core(mappedInputs) {
             });
         } else {
             // Course has 0 enrollments and is ready to recieve them
-            canvas.post(`/api/v1/courses/${courseData.course.id}/enrollments`, enrollmentObj, (err) => {
+            canvas.post(`/api/v1/sections/${courseData.section.id}/enrollments`, enrollmentObj, (err) => {
                 if (err) {
                     console.log(err);
                     badEnrollments.push({
                         teacher: courseData,
                         err: err,
-                        message: 'Error Enrolling'
+                        message: err.message
                     });
                     callback(null);
                     return;
                 }
-                console.log(`${courseData.course.id} | ${courseData.teacher.id} has been enrolled in their Sandbox course.`);
+                console.log(`${courseData.section.id} | ${courseData.teacher.id} has been enrolled.`);
                 goodEnrollments.push({
                     teacher: courseData,
                     err: err,
@@ -101,11 +221,11 @@ function core(mappedInputs) {
      **************************************************/
     function unenrollTeachers(courseData, unenrollCallback) {
         function unenrollTeacher(teacher, utCallback) {
-            canvas.delete(`/api/v1/courses/${courseData.course.id}/enrollments/${teacher.enrollmentId}?task=delete`, (err) => {
+            canvas.delete(`/api/v1/sections/${courseData.section.id}/enrollments/${teacher.enrollmentId}?task=delete`, (err) => {
                 if (err) {
                     utCallback(err);
                 } else {
-                    console.log(`${teacher.id} unenrolled from course: ${courseData.course.id}`);
+                    console.log(`${teacher.id} unenrolled from section: ${courseData.section.id}`);
                     utCallback(null);
                 }
             });
@@ -135,7 +255,7 @@ function core(mappedInputs) {
             failure: badEnrollments,
         };
 
-        fs.writeFileSync(`./${date}-Enrollments.json`, JSON.stringify(output, null, 4));
+        fs.writeFileSync(`./reports/${date}-Enrollments.json`, JSON.stringify(output, null, 4));
         console.log('Enrollments complete.');
     });
 }
@@ -143,10 +263,8 @@ function core(mappedInputs) {
  * Takes inputs from json, and maps them to program expected inputs
  * TODO figure out what the initial input looks like, and map the data
  ***************************************************************/
-function mapInputs(inputs) {
-    inputs = inputs.filter(input => {
-        return input.status != 'Passed';
-    });
+function mapTeacherInputs(inputs) {
+    inputs = inputs.filter(input => input.status === 'Failed' || input.status === 'No Teacher Enrollments');
     return inputs.map(input => {
         if (input.status === 'Failed') {
             return {
@@ -154,8 +272,8 @@ function mapInputs(inputs) {
                 teacher: {
                     id: `sis_user_id:${input.correctTeacher}`
                 },
-                course: {
-                    id: `sis_course_id:C.${input.id}`,
+                section: {
+                    id: `sis_section_id:${input.id}`,
                 },
             };
         } else {
@@ -163,12 +281,34 @@ function mapInputs(inputs) {
                 teacher: {
                     id: `sis_user_id:${input.correctTeacher}`
                 },
-                course: {
-                    id: `sis_course_id:C.${input.id}`,
+                section: {
+                    id: `sis_section_id:${input.id}`,
                 },
             };
         }
 
+    }).filter(input => input.teacher.id !== 'sis_user_id:000000000');
+}
+
+function mapStudentInputs(inputs) {
+    inputs = inputs.filter(input => input.status === 'Failed' || input.status === 'No Student Enrollments');
+    return inputs.map(input => {
+        if (input.status === 'Failed') {
+            return {
+                incorrectStudents: input.students, // I believe this is normally 1 however they are in a list because there could be multiple
+                students: input.correctStudents,
+                section: {
+                    id: `sis_section_id:${input.id}`,
+                },
+            };
+        } else {
+            return {
+                students: input.correctStudents,
+                section: {
+                    id: `sis_section_id:${input.id}`,
+                },
+            };
+        }
     });
 }
 
@@ -177,8 +317,9 @@ function mapInputs(inputs) {
  ***************************************************************/
 function main() {
     let inputs = input(); // Run me with the enrollmentReport.json
-    let mappedInputs = mapInputs(inputs);
-    core(mappedInputs);
+    let choice = process.argv[3];
+    let mappedInputs = mapChoices[choice](inputs);
+    choices[choice](mappedInputs);
 }
 
 main();
